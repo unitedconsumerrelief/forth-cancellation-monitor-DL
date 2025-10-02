@@ -1,8 +1,24 @@
-# Python
+# Environment files with sensitive data
+config.env
+.env
+.env.local
+.env.production
+
+# OAuth credential files
+credentials.json
+token.json
+
+# Database files
+state.db
+*.db
+
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -19,10 +35,62 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# Virtual environments
-.env
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
 .venv
 env/
 venv/
@@ -30,23 +98,20 @@ ENV/
 env.bak/
 venv.bak/
 
-# Environment variables
-.env
-.env.local
-.env.production
+# Spyder project settings
+.spyderproject
+.spyproject
 
-# Database
-state.db
-*.db
-*.sqlite
-*.sqlite3
+# Rope project settings
+.ropeproject
 
-# OAuth credentials (for local development only)
-credentials.json
-token.json
+# mkdocs documentation
+/site
 
-# Environment files (use config.env as template)
-.env
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
 # IDE
 .vscode/
@@ -63,11 +128,3 @@ token.json
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# Logs
-*.log
-logs/
-
-# Temporary files
-*.tmp
-*.temp

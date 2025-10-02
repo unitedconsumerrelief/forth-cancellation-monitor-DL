@@ -1,7 +1,6 @@
 # Google APIs
 google-api-python-client==2.146.0
 google-auth==2.34.0
-google-auth-oauthlib==1.2.1
 
 # Web server & scheduling
 Flask==3.0.3

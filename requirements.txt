@@ -1,0 +1,16 @@
+# Google APIs
+google-api-python-client==2.146.0
+google-auth==2.34.0
+google-auth-oauthlib==1.2.1
+
+# Web server & scheduling
+Flask==3.0.3
+waitress==3.0.0
+
+# Slack
+slack-sdk==3.33.1
+
+# Misc
+python-dotenv==1.0.1
+pytz==2024.1
+requests==2.32.3

@@ -120,12 +120,20 @@ class GmailSlackMonitor:
             # Get the delegated email (the user to impersonate)
             delegated_email = os.getenv('GOOGLE_DELEGATED_EMAIL')
             
+            # Process private key - handle newline characters and quotes
+            private_key = os.getenv('GOOGLE_PRIVATE_KEY', '')
+            if private_key:
+                # Replace literal \n with actual newlines
+                private_key = private_key.replace('\\n', '\n')
+                # Remove any surrounding quotes if present
+                private_key = private_key.strip('"').strip("'")
+            
             # Create credentials info dict
             credentials_info = {
                 "type": "service_account",
                 "project_id": os.getenv('GOOGLE_PROJECT_ID', 'master-cpa-data'),
                 "private_key_id": os.getenv('GOOGLE_PRIVATE_KEY_ID', ''),
-                "private_key": os.getenv('GOOGLE_PRIVATE_KEY'),
+                "private_key": private_key,
                 "client_email": os.getenv('GOOGLE_SERVICE_ACCOUNT_EMAIL'),
                 "client_id": os.getenv('GOOGLE_CLIENT_ID', ''),
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -167,11 +175,14 @@ class GmailSlackMonitor:
             logger.info(f"Found {len(messages)} messages")
             
             new_messages = 0
+            skipped_messages = 0
             for message in messages:
                 message_id = message['id']
                 
                 # Check if already processed
                 if self.is_message_processed(message_id):
+                    logger.debug(f"Message {message_id} already processed, skipping")
+                    skipped_messages += 1
                     continue
                 
                 # Get message details
@@ -186,7 +197,7 @@ class GmailSlackMonitor:
                     else:
                         logger.error(f"Failed to post message to Slack: {message_data['subject']}")
             
-            logger.info(f"Polling complete. Processed {new_messages} new messages")
+            logger.info(f"Polling complete. Processed {new_messages} new messages, skipped {skipped_messages} already processed")
             
         except Exception as e:
             logger.error(f"Error during Gmail polling: {e}")

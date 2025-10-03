@@ -188,9 +188,13 @@ class GmailSlackMonitor:
                 # Get message details
                 message_data = self.get_message_details(message_id)
                 if message_data:
-                    # Additional duplicate check based on subject and date
+                    # Additional duplicate check based on Record ID or content
                     if self.is_duplicate_by_content(message_data):
-                        logger.debug(f"Message with subject '{message_data['subject']}' already processed based on content, skipping")
+                        record_id = self.extract_record_id(message_data)
+                        if record_id:
+                            logger.debug(f"Record ID {record_id} already processed, skipping duplicate")
+                        else:
+                            logger.debug(f"Message with subject '{message_data['subject']}' already processed based on content, skipping")
                         skipped_messages += 1
                         continue
                     
@@ -201,7 +205,13 @@ class GmailSlackMonitor:
                         # Also mark by content for additional safety
                         self.mark_content_processed(message_data)
                         new_messages += 1
-                        logger.info(f"Posted new message to Slack: {message_data['subject']}")
+                        
+                        # Log with Record ID if available
+                        record_id = self.extract_record_id(message_data)
+                        if record_id:
+                            logger.info(f"Posted new message to Slack: {message_data['subject']} (Record ID: {record_id})")
+                        else:
+                            logger.info(f"Posted new message to Slack: {message_data['subject']}")
                     else:
                         logger.error(f"Failed to post message to Slack: {message_data['subject']}")
             
@@ -271,11 +281,45 @@ class GmailSlackMonitor:
         except Exception as e:
             logger.error(f"Error marking content as processed: {e}")
 
+    def extract_record_id(self, message_data: Dict[str, Any]) -> Optional[str]:
+        """Extract Record ID from email body for deduplication."""
+        try:
+            body = message_data.get('body', '')
+            
+            # Look for Record ID pattern in the body
+            import re
+            patterns = [
+                r'Record ID:\s*(\d+)',
+                r'Record\s+ID:\s*(\d+)',
+                r'ID:\s*(\d+)',
+                r'#(\d+)',  # In case it's formatted as #123456
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, body, re.IGNORECASE)
+                if match:
+                    record_id = match.group(1)
+                    logger.debug(f"Extracted Record ID: {record_id}")
+                    return record_id
+            
+            # If no Record ID found, fall back to subject-based hash
+            logger.debug("No Record ID found, using subject-based hash")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error extracting Record ID: {e}")
+            return None
+
     def create_content_hash(self, message_data: Dict[str, Any]) -> str:
         """Create a hash based on message content for duplicate detection."""
         import hashlib
         
-        # Use subject and date to create a unique hash
+        # First try to use Record ID if available
+        record_id = self.extract_record_id(message_data)
+        if record_id:
+            return f"record_{record_id}"
+        
+        # Fall back to subject and date if no Record ID found
         content = f"{message_data['subject']}_{message_data['date']}"
         return hashlib.md5(content.encode()).hexdigest()
 

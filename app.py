@@ -168,7 +168,7 @@ class GmailSlackMonitor:
             results = self.gmail_service.users().messages().list(
                 userId='me', 
                 q=self.gmail_query,
-                maxResults=10
+                maxResults=50
             ).execute()
             
             messages = results.get('messages', [])
@@ -516,6 +516,33 @@ class GmailSlackMonitor:
             logger.error(f"Error posting to Slack: {e}")
             return False
 
+    def clear_processed_messages(self):
+        """Clear all processed message records for a fresh sweep."""
+        try:
+            conn = sqlite3.connect('state.db')
+            cursor = conn.cursor()
+            
+            # Get count before clearing
+            cursor.execute('SELECT COUNT(*) FROM processed')
+            count_before = cursor.fetchone()[0]
+            
+            # Clear all processed records
+            cursor.execute('DELETE FROM processed')
+            conn.commit()
+            
+            # Get count after clearing
+            cursor.execute('SELECT COUNT(*) FROM processed')
+            count_after = cursor.fetchone()[0]
+            
+            conn.close()
+            
+            logger.info(f"Database cleared: {count_before} -> {count_after} records")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error clearing database: {e}")
+            return False
+
     def start_polling(self):
         """Start the Gmail polling loop."""
         logger.info(f"Starting Gmail polling every {self.poll_interval} seconds")
@@ -547,6 +574,29 @@ def health():
         'gmail_query': monitor.gmail_query,
         'poll_interval': monitor.poll_interval
     })
+
+@app.route('/sweep')
+def sweep():
+    """Trigger a fresh sweep by clearing database and polling once."""
+    try:
+        # Clear the database
+        if monitor.clear_processed_messages():
+            # Run one polling cycle
+            monitor.poll_gmail()
+            return jsonify({
+                'status': 'success',
+                'message': 'Fresh sweep completed - database cleared and emails processed'
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to clear database'
+            }), 500
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error during sweep: {str(e)}'
+        }), 500
 
 def main():
     """Main function to start the service."""

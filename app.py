@@ -188,10 +188,18 @@ class GmailSlackMonitor:
                 # Get message details
                 message_data = self.get_message_details(message_id)
                 if message_data:
+                    # Additional duplicate check based on subject and date
+                    if self.is_duplicate_by_content(message_data):
+                        logger.debug(f"Message with subject '{message_data['subject']}' already processed based on content, skipping")
+                        skipped_messages += 1
+                        continue
+                    
                     # Post to Slack
                     if self.post_to_slack(message_data):
                         # Mark as processed
                         self.mark_message_processed(message_id)
+                        # Also mark by content for additional safety
+                        self.mark_content_processed(message_data)
                         new_messages += 1
                         logger.info(f"Posted new message to Slack: {message_data['subject']}")
                     else:
@@ -210,7 +218,9 @@ class GmailSlackMonitor:
             cursor.execute('SELECT id FROM processed WHERE id = ?', (message_id,))
             result = cursor.fetchone()
             conn.close()
-            return result is not None
+            is_processed = result is not None
+            logger.debug(f"Message {message_id} processed status: {is_processed}")
+            return is_processed
         except Exception as e:
             logger.error(f"Error checking if message is processed: {e}")
             return False
@@ -223,8 +233,51 @@ class GmailSlackMonitor:
             cursor.execute('INSERT OR IGNORE INTO processed (id) VALUES (?)', (message_id,))
             conn.commit()
             conn.close()
+            logger.debug(f"Marked message {message_id} as processed")
         except Exception as e:
             logger.error(f"Error marking message as processed: {e}")
+
+    def is_duplicate_by_content(self, message_data: Dict[str, Any]) -> bool:
+        """Check if a message with similar content has already been processed."""
+        try:
+            conn = sqlite3.connect('state.db')
+            cursor = conn.cursor()
+            
+            # Create a content hash based on subject and date
+            content_hash = self.create_content_hash(message_data)
+            cursor.execute('SELECT id FROM processed WHERE id = ?', (content_hash,))
+            result = cursor.fetchone()
+            conn.close()
+            
+            is_duplicate = result is not None
+            logger.debug(f"Content duplicate check for '{message_data['subject']}': {is_duplicate}")
+            return is_duplicate
+        except Exception as e:
+            logger.error(f"Error checking content duplicate: {e}")
+            return False
+
+    def mark_content_processed(self, message_data: Dict[str, Any]):
+        """Mark message content as processed."""
+        try:
+            conn = sqlite3.connect('state.db')
+            cursor = conn.cursor()
+            
+            # Create a content hash based on subject and date
+            content_hash = self.create_content_hash(message_data)
+            cursor.execute('INSERT OR IGNORE INTO processed (id) VALUES (?)', (content_hash,))
+            conn.commit()
+            conn.close()
+            logger.debug(f"Marked content as processed: {content_hash}")
+        except Exception as e:
+            logger.error(f"Error marking content as processed: {e}")
+
+    def create_content_hash(self, message_data: Dict[str, Any]) -> str:
+        """Create a hash based on message content for duplicate detection."""
+        import hashlib
+        
+        # Use subject and date to create a unique hash
+        content = f"{message_data['subject']}_{message_data['date']}"
+        return hashlib.md5(content.encode()).hexdigest()
 
     def get_message_details(self, message_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a specific message."""
